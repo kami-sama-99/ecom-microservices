@@ -1,6 +1,7 @@
 package com.ecommerce.order.controller;
 
 import com.ecommerce.order.dto.OrderResponse;
+import com.ecommerce.order.model.OrderStatus;
 import com.ecommerce.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatusCode;
@@ -26,6 +27,6 @@ public class OrderController {
         if (orderResponseOptional.isEmpty())
             return ResponseEntity.badRequest().build();
         OrderResponse orderResponse = orderResponseOptional.get();
-        return new ResponseEntity<>(orderResponse, HttpStatusCode.valueOf(201));
+        return ResponseEntity.ok(orderResponse);
     }
 }

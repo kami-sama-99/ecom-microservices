@@ -1,7 +1,8 @@
 package com.ecommerce.order.service;
 
-import com.ecommerce.order.dto.OrderItemDTO;
-import com.ecommerce.order.dto.OrderResponse;
+import com.ecommerce.order.clients.PaymentServiceClient;
+import com.ecommerce.order.clients.UserServiceClient;
+import com.ecommerce.order.dto.*;
 import com.ecommerce.order.repository.OrderRepository;
 import com.ecommerce.order.model.CartItem;
 import com.ecommerce.order.model.Order;
@@ -19,19 +20,17 @@ import java.util.Optional;
 public class OrderService {
     private final OrderRepository orderRepository;
     private final CartService cartService;
+    private final PaymentServiceClient paymentServiceClient;
+    private final UserServiceClient userServiceClient;
 
     public Optional<OrderResponse> createOrder(String userId) {
-//        Optional<User> optionalUser = userRepository.findById(Long.valueOf(userId));
-//        if (optionalUser.isEmpty())
-//            return Optional.empty();
-//        User user = optionalUser.get();
         Optional<List<CartItem>> optionalCartItems = cartService.getCart(userId);
         if (optionalCartItems.isEmpty())
             return Optional.empty();
         List<CartItem> cartItems = optionalCartItems.get();
         Order order = new Order();
         order.setUserId(userId);
-        order.setOrderStatus(OrderStatus.CONFIRMED);
+        order.setOrderStatus(OrderStatus.PENDING);
         BigDecimal totalPrice = cartItems.stream()
                 .map(CartItem::getPrice)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -46,11 +45,21 @@ public class OrderService {
                 )).toList();
         order.setOrderItemList(orderItems);
         Order savedOrder = orderRepository.save(order);
-        cartService.clearCart(userId);
-        return Optional.of(mapToOrderResponse(savedOrder));
+        UserResponse user = userServiceClient.getUserDetails(userId);
+        PaymentResponse paymentResponse = paymentServiceClient.createPayment(new PaymentRequest(
+                userId,
+                Long.toString(order.getId()),
+                order.getTotalAmount(),
+                Currency.INR,
+                user.getFirstName(),
+                user.getLastName(),
+                user.getEmail(),
+                user.getPhone()
+        ));
+        return Optional.of(mapToOrderResponse(savedOrder, paymentResponse.getPaymentLink()));
     }
 
-    private OrderResponse mapToOrderResponse(Order savedOrder) {
+    private OrderResponse mapToOrderResponse(Order savedOrder, String paymentLink) {
         OrderResponse orderResponse = new OrderResponse();
         orderResponse.setId(savedOrder.getId());
         orderResponse.setTotalAmount(savedOrder.getTotalAmount());
@@ -64,6 +73,7 @@ public class OrderService {
                         )
                 ).toList();
         orderResponse.setOrderItemList(orderItemDTOList);
+        orderResponse.setPaymentLink(paymentLink);
         orderResponse.setCreatedAt(savedOrder.getCreatedAt());
         return orderResponse;
     }

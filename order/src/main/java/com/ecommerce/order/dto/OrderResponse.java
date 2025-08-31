@@ -13,5 +13,6 @@ public class OrderResponse {
     private BigDecimal totalAmount;
     private OrderStatus status;
     private List<OrderItemDTO> orderItemList;
+    private String paymentLink;
     private LocalDateTime createdAt;
 }
